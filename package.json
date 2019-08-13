@@ -13,20 +13,21 @@
   "scripts": {
     "eslint": "eslint src",
     "eslint-fix": "npm run eslint -- --fix",
-    "test": "run-s testonly eslint",
+    "test": "npm run testonly && npm run eslint",
+    "test-watch": "jest --watch",
     "testonly": "jest"
   },
   "devDependencies": {
     "eslint": "^4.1.1",
     "eslint-config-cheminfo": "^1.6.0",
     "eslint-plugin-no-only-tests": "^2.0.0",
-    "jest": "^20.0.4",
+    "jest": "^24.8.0",
     "jest-matcher-deep-close-to": "^1.0.2",
     "npm-run-all": "^4.0.2"
   },
   "author": "jajoe",
   "license": "MIT",
   "dependencies": {
-    "ml-matrix": "^6.1.2"
+    "ml-matrix": "^6.2.0"
   }
 }
