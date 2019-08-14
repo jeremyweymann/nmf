@@ -16,10 +16,10 @@ module.exports = nmf;
  * @return {Object} WH - object with the format {W: ..., H: ...}. W and H are the results (i.e A ~= W.H)
  */
 
-function nmf(V, k, algorithm, options) {
+function nmf(V, k, algorithm, options = {}) {
 
 
-    let result = algorithm(V, k, options = {});
+    let result = algorithm(V, k, options);
     let W = result.W;
     let H = result.H;
 
