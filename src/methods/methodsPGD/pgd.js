@@ -95,7 +95,7 @@ function gradientAdditive(V, k, options) {
  * @return {object} return value has the format {W: , H: }
  */
 
-function nlssubprob(V, W, Hinit, tol, maxIter) {
+function pgdnnls(V, W, Hinit, tol, maxIter) {
     let H = Hinit;
     let WtV = W.transpose().mmul(V);
     let WtW = W.transpose().mmul(W);

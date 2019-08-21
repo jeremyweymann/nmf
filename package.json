@@ -28,6 +28,7 @@
   "author": "jajoe",
   "license": "MIT",
   "dependencies": {
+    "ml-fcnnls": "^1.0.0",
     "ml-matrix": "^6.2.0"
   }
 }
