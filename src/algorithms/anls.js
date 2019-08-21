@@ -1,94 +1,150 @@
 'use strict';
 
-const {Matrix} = require('ml-matrix');
-
+const { Matrix } = require('ml-matrix');
+const { fcnnls } = require('ml-fcnnls');
 const projGrad = require('../util/projGrad');
-const {augmentedMatrix, vertConcatMatrix} = require('../util/augmentedMatrix');
+const {
+  augmentedMatrix,
+  vertConcatMatrix
+} = require('../util/augmentedMatrix');
 
 module.exports = anls;
 
 function anls(V, k, method, Winit, Hinit, options = {}) {
+  const m = V.rows;
+  const n = V.columns;
+  let maxV = V.max();
 
-    const m = V.rows;
-    const n = V.columns;
-    let maxV = V.max();
+  const {
+    tol = 0.000000001,
+    maxIter = 2000,
+    regularization = 0,
+    sparseParam = 0.01,
+    scalingParam = maxV
+  } = options;
 
-    const {
-        tol = 0.000000001,
-        maxIter = 2000,
-        regularization = 0,
-        sparseParam = 0.01,
-        scalingParam = maxV,
-    } = options;
+  let W = Winit;
+  let H = Hinit;
 
-    let W = Winit;
-    let H = Hinit;
+  let relativeError;
+  let convCrit;
+  let iter = 0;
 
-    let relativeError;
-    let convCrit;
-    let iter = 0;
+  switch (regularization.toLowerCase()) {
+    case 'right':
+      regularizationRight();
 
+      break;
+    case 'left':
+      regularizationLeft();
+      break;
+    default:
+  }
 
-    if (regularization === 'R') {
+  if (regularization === 'R') {
+    let sqrtSparseParam = Math.sqrt(sparseParam);
+    let sqrtScalingParam = Math.sqrt(scalingParam);
 
-        let sqrtSparseParam = Math.sqrt(sparseParam);
-        let sqrtScalingParam = Math.sqrt(scalingParam);
+    let delta0 = Math.sqrt(
+      Math.pow(projGrad(V, W, H).norm(), 2) +
+        Math.pow(
+          projGrad(V.transpose(), H.transpose(), W.transpose()).norm(),
+          2
+        )
+    );
 
-        let delta0 = Math.sqrt(Math.pow(projGrad(V, W, H).norm(), 2) + Math.pow(projGrad(V.transpose(), H.transpose(), W.transpose()).norm(), 2));
+    let rowAugmentedV = vertConcatMatrix(V, Matrix.zeros(1, n));
+    let matAugmentedVt = vertConcatMatrix(V.transpose(), Matrix.zeros(k, m));
 
-        let rowAugmentedV = vertConcatMatrix(V, Matrix.zeros(1, n));
-        let matAugmentedVt = vertConcatMatrix(V.transpose(), Matrix.zeros(k, m));
+    do {
+      iter++;
+      let augmentedMat = augmentedMatrix(
+        W,
+        H,
+        k,
+        sqrtSparseParam,
+        sqrtScalingParam
+      );
+      let rowAugmentedW = augmentedMat.rowAugmentedX;
+      let idAugmentedHt = augmentedMat.idAugmentedYt;
 
-        do {
-            iter++;
-            let augmentedMat = augmentedMatrix(W, H, k, sqrtSparseParam, sqrtScalingParam);
-            let rowAugmentedW = augmentedMat.rowAugmentedX;
-            let idAugmentedHt = augmentedMat.idAugmentedYt;
+      H = method(rowAugmentedW, rowAugmentedV);
+      W = method(idAugmentedHt, matAugmentedVt).transpose();
+      convCrit =
+        Math.sqrt(
+          Math.pow(projGrad(V, W, H).norm(), 2) +
+            Math.pow(
+              projGrad(V.transpose(), H.transpose(), W.transpose()).norm(),
+              2
+            )
+        ) / delta0;
+    } while (convCrit > tol && iter < maxIter);
+  } else if (regularization === 'L') {
+    let sqrtSparseParam = Math.sqrt(sparseParam);
+    let sqrtScalingParam = Math.sqrt(scalingParam);
 
-            H = method(rowAugmentedW, rowAugmentedV);
-            W = method(idAugmentedHt, matAugmentedVt).transpose();
-            convCrit = (Math.sqrt(Math.pow(projGrad(V, W, H).norm(), 2) + Math.pow(projGrad(V.transpose(), H.transpose(), W.transpose()).norm(), 2))) / delta0;
-        } while (convCrit > tol && iter < maxIter);
+    let delta0 = Math.sqrt(
+      Math.pow(projGrad(V, W, H).norm(), 2) +
+        Math.pow(
+          projGrad(V.transpose(), H.transpose(), W.transpose()).norm(),
+          2
+        )
+    );
 
-    } else if (regularization === 'L') {
+    let rowAugmentedVt = vertConcatMatrix(V.transpose(), Matrix.zeros(1, m));
+    let matAugmentedV = vertConcatMatrix(V, Matrix.zeros(k, n));
 
-        let sqrtSparseParam = Math.sqrt(sparseParam);
-        let sqrtScalingParam = Math.sqrt(scalingParam);
+    do {
+      iter++;
+      let augmentedMat = augmentedMatrix(
+        H.transpose(),
+        W.transpose(),
+        k,
+        sqrtSparseParam,
+        sqrtScalingParam
+      );
+      let rowAugmentedHt = augmentedMat.rowAugmentedX;
+      let idAugmentedW = augmentedMat.idAugmentedYt;
 
-        let delta0 = Math.sqrt(Math.pow(projGrad(V, W, H).norm(), 2) + Math.pow(projGrad(V.transpose(), H.transpose(), W.transpose()).norm(), 2));
+      W = method(rowAugmentedHt, rowAugmentedVt).transpose();
+      H = method(idAugmentedW, matAugmentedV);
+      convCrit =
+        Math.sqrt(
+          Math.pow(projGrad(V, W, H).norm(), 2) +
+            Math.pow(
+              projGrad(V.transpose(), H.transpose(), W.transpose()).norm(),
+              2
+            )
+        ) / delta0;
+    } while (convCrit > tol && iter < maxIter);
+  } else {
+    //console.log({W, H});
 
+    let delta0 = Math.sqrt(
+      Math.pow(projGrad(V, W, H).norm(), 2) +
+        Math.pow(
+          projGrad(V.transpose(), H.transpose(), W.transpose()).norm(),
+          2
+        )
+    );
+    do {
+      iter++;
+      H = method(W, V);
+      W = method(H.transpose(), V.transpose()).transpose();
+      convCrit =
+        Math.sqrt(
+          Math.pow(projGrad(V, W, H).norm(), 2) +
+            Math.pow(
+              projGrad(V.transpose(), H.transpose(), W.transpose()).norm(),
+              2
+            )
+        ) / delta0;
+    } while (convCrit > tol && iter < maxIter);
+  }
 
-        let rowAugmentedVt = vertConcatMatrix(V.transpose(), Matrix.zeros(1, m));
-        let matAugmentedV = vertConcatMatrix(V, Matrix.zeros(k, n));
+  relativeError = Matrix.subtract(W.mmul(H), V).norm() / V.norm();
 
-        do {
-            iter++;
-            let augmentedMat = augmentedMatrix(H.transpose(), W.transpose(), k, sqrtSparseParam, sqrtScalingParam);
-            let rowAugmentedHt = augmentedMat.rowAugmentedX;
-            let idAugmentedW = augmentedMat.idAugmentedYt;
-
-            W = method(rowAugmentedHt, rowAugmentedVt).transpose();
-            H = method(idAugmentedW, matAugmentedV);
-            convCrit = (Math.sqrt(Math.pow(projGrad(V, W, H).norm(), 2) + Math.pow(projGrad(V.transpose(), H.transpose(), W.transpose()).norm(), 2))) / delta0;
-        } while (convCrit > tol && iter < maxIter);
-
-    } else {
-        //console.log({W, H});
-
-        let delta0 = Math.sqrt(Math.pow(projGrad(V, W, H).norm(), 2) + Math.pow(projGrad(V.transpose(), H.transpose(), W.transpose()).norm(), 2));
-        do {
-            iter++;
-            H = method(W, V);
-            W = method(H.transpose(), V.transpose()).transpose();
-            convCrit = (Math.sqrt(Math.pow(projGrad(V, W, H).norm(), 2) + Math.pow(projGrad(V.transpose(), H.transpose(), W.transpose()).norm(), 2))) / delta0;
-        } while (convCrit > tol && iter < maxIter);
-
-    }
-
-    relativeError = Matrix.subtract(W.mmul(H), V).norm() / V.norm();
-
-    console.log({iter, relativeError, convCrit});
-    //console.log('\nIter = '+i);
-    return {W: W, H: H};
+  console.log({ iter, relativeError, convCrit });
+  //console.log('\nIter = '+i);
+  return { W: W, H: H };
 }
-
