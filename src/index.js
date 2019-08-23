@@ -1,9 +1,9 @@
 'use strict';
 
 const {
-  Matrix,
-  WrapperMatrix2D,
-  SingularValueDecomposition
+    Matrix,
+    WrapperMatrix2D,
+    SingularValueDecomposition
 } = require('ml-matrix');
 const anls = require('./algorithms/anls');
 
@@ -29,39 +29,39 @@ const initialisation = require('./util/initialisation');
  */
 
 class nmf {
-  constructor(V, k, options = {}) {
-    const { svdInitialisation = false } = options;
+    constructor(V, k, options = {}) {
+        const {svdInitialisation = false} = options;
 
-    this.k = k;
-    this.V = WrapperMatrix2D.checkMatrix(V);
+        this.k = k;
+        this.V = WrapperMatrix2D.checkMatrix(V);
 
-    if (typeof k !== 'number') {
-      throw new Error('k must be a number');
+        if (typeof k !== 'number') {
+            throw new Error('k must be a number');
+        }
+
+        let {Winit, Hinit, rank} = initialisation(
+            this.V,
+            this.k,
+            svdInitialisation
+        );
+
+        const {algorithm = 'anls', method = 'fcnnls', algorithmOptions} = options;
+
+        let algorithmFct;
+        switch (algorithm.toLowerCase()) {
+            case 'anls':
+                algorithmFct = anls;
+                break;
+            default:
+                throw new Error('Undefined algorithm: ' + algorithm);
+        }
+
+        //let algOptions = {tol, maxIterations};
+
+        let result = algorithmFct(V, k, Winit, Hinit, algorithmOptions);
+        this.W = result.W;
+        this.H = result.H;
     }
-
-    let { Winit, Hinit, rank } = initialisation(
-      this.V,
-      this.k,
-      svdInitialisation
-    );
-
-    const { algorithm = 'anls', method = 'fcnnls', algorithmOptions } = options;
-
-    let algorithmFct;
-    switch (algorithm.toLowerCase()) {
-      case 'anls':
-        algorithmFct = anls;
-        break;
-      default:
-        throw new Error('Undefined algorithm: ' + algorithm);
-    }
-
-    //let algOptions = {tol, maxIterations};
-
-    let result = algorithmFct(V, k, Winit, Hinit, algorithmOptions);
-    this.W = result.W;
-    this.H = result.H;
-  }
 }
 
 /* optional value returned (?): 
@@ -72,10 +72,3 @@ class nmf {
     */
 
 module.exports = nmf;
-
-/**
- * Choose appropriate rank for nmf and good starting matrix (corresponding to given rank)
- * @param {Matrix} V
- * @param {object} options
- * @param {number} [options.k]
- */
